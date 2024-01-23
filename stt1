@@ -1,0 +1,101 @@
+import speech_recognition as sr
+import pyttsx3
+import RPi.GPIO as GPIO
+import time
+import smbus
+
+# Khởi tạo các biến
+r = sr.Recognizer()
+engine = pyttsx3.init()
+lcd_address = 0x27
+lcd_columns = 16
+lcd_rows = 2
+lcd_backlight = 0x08
+lcd_enable = 0b00000100
+lcd_cmd = 0b00000000
+lcd_data = 0b00000001
+
+# Thiết lập chân GPIO
+GPIO.setwarnings(False)
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(2, GPIO.OUT)
+GPIO.setup(3, GPIO.OUT)
+GPIO.setup(4, GPIO.OUT)
+GPIO.setup(17, GPIO.OUT)
+GPIO.setup(27, GPIO.OUT)
+GPIO.setup(22, GPIO.OUT)
+GPIO.setup(10, GPIO.OUT)
+GPIO.setup(9, GPIO.OUT)
+
+# Thiết lập giao tiếp I2C
+bus = smbus.SMBus(1)
+
+def lcd_init():
+    # Khởi tạo màn hình LCD
+    bus.write_byte(lcd_address, lcd_cmd | lcd_backlight)
+    time.sleep(0.0005)
+    bus.write_byte(lcd_address, lcd_cmd | lcd_backlight | lcd_enable)
+    time.sleep(0.0005)
+    bus.write_byte(lcd_address, lcd_cmd | lcd_backlight)
+    time.sleep(0.0005)
+    bus.write_byte(lcd_address, lcd_cmd | lcd_backlight | lcd_enable)
+    time.sleep(0.0005)
+    bus.write_byte(lcd_address, lcd_cmd | lcd_backlight)
+    time.sleep(0.0005)
+    bus.write_byte(lcd_address, lcd_cmd | lcd_backlight | lcd_enable)
+    time.sleep(0.0005)
+    bus.write_byte(lcd_address, lcd_cmd | lcd_backlight)
+    time.sleep(0.0005)
+    bus.write_byte(lcd_address, lcd_cmd | lcd_backlight | lcd_enable)
+    time.sleep(0.0005)
+    bus.write_byte(lcd_address, lcd_cmd | lcd_backlight)
+    time.sleep(0.0005)
+    bus.write_byte(lcd_address, lcd_cmd | lcd_backlight | lcd_enable)
+    time.sleep(0.0005)
+    bus.write_byte(lcd_address, lcd_cmd | lcd_backlight)
+    time.sleep(0.0005)
+
+def lcd_byte(bits, mode):
+    # Gửi byte dữ liệu đến màn hình LCD
+    GPIO.output(2, mode)
+    GPIO.output(3, bits & 0x10 == 0x10)
+    GPIO.output(4, bits & 0x20 == 0x20)
+    GPIO.output(17, bits & 0x40 == 0x40)
+    GPIO.output(27, bits & 0x80 == 0x80)
+    GPIO.output(22, 0)
+    GPIO.output(10, 1)
+    time.sleep(0.0005)
+    GPIO.output(10, 0)
+
+def lcd_string(message, line):
+    # Hiển thị chuỗi văn bản lên màn hình LCD
+    message = message.ljust(lcd_columns, " ")
+    lcd_byte(line, lcd_cmd)
+    for i in range(lcd_columns):
+        lcd_byte(ord(message[i]), lcd_data)
+
+# Khởi tạo màn hình LCD
+lcd_init()
+
+# Vòng lặp chính
+while True:
+    with sr.Microphone() as source:
+        print("Hãy nói gì đó...")
+        audio = r.listen(source)
+    
+    try:
+        # Nhận dạng giọng nói
+        text = r.recognize_google(audio, language="en-EN")
+        print("Bạn đã nói: " + text)
+        
+        # Hiển thị văn bản lên màn hình LCD
+        lcd_string(text, 0x80)
+        
+        # Phát giọng nói
+        engine.say(text)
+        engine.runAndWait()
+        
+    except sr.UnknownValueError:
+        print("Không thể nhận dạng giọng nói")
+    except sr.RequestError as e:
+        print("Lỗi trong quá trình nhận dạng giọng nói: {0}".format(e))
